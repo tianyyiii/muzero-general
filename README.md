@@ -84,7 +84,18 @@ cd muzero-general
 
 pip install -r requirements.lock
 ```
-
+Note for colab use: There may be a python versioning issue with the dependencies, in which case using Python 3.10 with the below commands may help fix this.
+```
+!wget https://github.com/korakot/kora/releases/download/v0.10/py310.sh
+!bash ./py310.sh -b -f -p /usr/local
+!python -m ipykernel install --name "py310" --user
+```
+For Gym compatibility, some additional libraries may need to be downgraded.
+```
+!pip install gym==0.25.2
+!pip uninstall numpy
+!pip install numpy==1.23.5
+```
 ### Run
 
 ```bash
