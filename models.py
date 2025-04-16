@@ -2,6 +2,7 @@ import math
 from abc import ABC, abstractmethod
 
 import torch
+import random
 
 
 class MuZeroNetwork:
@@ -493,16 +494,33 @@ class MuZeroResidualNetwork(AbstractNetwork):
             )
         )
 
-        self.dynamics_network = torch.nn.DataParallel(
-            DynamicsNetwork(
-                num_blocks,
-                num_channels + 1,
-                reduced_channels_reward,
-                fc_reward_layers,
-                self.full_support_size,
-                block_output_size_reward,
-            )
+        self.dynamics_ensemble_count = 5
+        self.dynamics_networks = torch.nn.ModuleList(
+            [
+                torch.nn.DataParallel(
+                    DynamicsNetwork(
+                        num_blocks,
+                        num_channels + 1,
+                        reduced_channels_reward,
+                        fc_reward_layers,
+                        self.full_support_size,
+                        block_output_size_reward,
+                    )
+                )
+                for _ in range(self.dynamics_ensemble_count)
+            ]
         )
+
+        # self.dynamics_network = torch.nn.DataParallel(
+        #     DynamicsNetwork(
+        #         num_blocks,
+        #         num_channels + 1,
+        #         reduced_channels_reward,
+        #         fc_reward_layers,
+        #         self.full_support_size,
+        #         block_output_size_reward,
+        #     )
+        # )
 
         self.prediction_network = torch.nn.DataParallel(
             PredictionNetwork(
@@ -552,7 +570,7 @@ class MuZeroResidualNetwork(AbstractNetwork):
         ) / scale_encoded_state
         return encoded_state_normalized
 
-    def dynamics(self, encoded_state, action):
+    def dynamics(self, encoded_state, action, idx):
         # Stack encoded_state with a game specific one hot encoded action (See paper appendix Network Architecture)
         action_one_hot = (
             torch.ones(
@@ -570,7 +588,8 @@ class MuZeroResidualNetwork(AbstractNetwork):
             action[:, :, None, None] * action_one_hot / self.action_space_size
         )
         x = torch.cat((encoded_state, action_one_hot), dim=1)
-        next_encoded_state, reward = self.dynamics_network(x)
+        # next_encoded_state, reward = self.dynamics_network(x)
+        next_encoded_state, reward = self.dynamics_networks[idx](x)
 
         # Scale encoded state between [0, 1] (See paper appendix Training)
         min_next_encoded_state = (
@@ -618,7 +637,8 @@ class MuZeroResidualNetwork(AbstractNetwork):
         )
 
     def recurrent_inference(self, encoded_state, action):
-        next_encoded_state, reward = self.dynamics(encoded_state, action)
+        idx = random.randint(0, self.dynamics_ensemble_count - 1)
+        next_encoded_state, reward = self.dynamics(encoded_state, action, idx)
         policy_logits, value = self.prediction(next_encoded_state)
         return value, reward, policy_logits, next_encoded_state
 
