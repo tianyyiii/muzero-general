@@ -304,43 +304,114 @@ class Connect4:
 
         return False
 
-    def expert_action(self):
-        board = self.board
-        action = numpy.random.choice(self.legal_actions())
-        for k in range(3):
-            for l in range(4):
-                sub_board = board[k : k + 4, l : l + 4]
-                # Horizontal and vertical checks
-                for i in range(4):
-                    if abs(sum(sub_board[i, :])) == 3:
-                        ind = numpy.where(sub_board[i, :] == 0)[0][0]
-                        if numpy.count_nonzero(board[:, ind + l]) == i + k:
-                            action = ind + l
-                            if self.player * sum(sub_board[i, :]) > 0:
-                                return action
+    def expert_action(self, depth=4):
 
-                    if abs(sum(sub_board[:, i])) == 3:
-                        action = i + l
-                        if self.player * sum(sub_board[:, i]) > 0:
-                            return action
-                # Diagonal checks
-                diag = sub_board.diagonal()
-                anti_diag = numpy.fliplr(sub_board).diagonal()
-                if abs(sum(diag)) == 3:
-                    ind = numpy.where(diag == 0)[0][0]
-                    if numpy.count_nonzero(board[:, ind + l]) == ind + k:
-                        action = ind + l
-                        if self.player * sum(diag) > 0:
-                            return action
+        def player_weight(player):
+            return 1 if player == self.player else -1
 
-                if abs(sum(anti_diag)) == 3:
-                    ind = numpy.where(anti_diag == 0)[0][0]
-                    if numpy.count_nonzero(board[:, 3 - ind + l]) == ind + k:
-                        action = 3 - ind + l
-                        if self.player * sum(anti_diag) > 0:
-                            return action
+        def drop_piece(board, col, player):
+            new_board = board.copy()
+            for row in range(5, -1, -1):
+                if new_board[row][col] == 0:
+                    new_board[row][col] = player
+                    break
+            return new_board
 
-        return action
+        def score_path(board, start_row, start_col, row_step, col_step):
+            score = 0
+            window = []
+            for i in range(4):
+                r = start_row + i * row_step
+                c = start_col + i * col_step
+                if r < 0 or r >= 6 or c < 0 or c >= 7:
+                    return 0
+                window.append(board[r][c])
+
+            if all(v == window[0] and v != 0 for v in window):
+                score += 1000 * player_weight(window[0])
+            else:
+                for p in [1, -1]:
+                    if window.count(p) > 0 and window.count(0) + window.count(p) == 4:
+                        score += window.count(p) * player_weight(p)
+            return score
+
+        def evaluate(board):
+            score = 0
+
+            for col in range(7):
+                for row in range(6 - 1, -1, -1):
+                    if board[row][col] == 0:
+                        if row + 1 < 6:
+                            p = board[row + 1][col]
+                            path_len = 0
+                            for r in range(row + 1, 6):
+                                if board[r][col] != p or board[r][col] == 0:
+                                    break
+                                path_len += 1
+                            if 4 - path_len <= row + 1:
+                                if path_len >= 4:
+                                    score += 1000 * player_weight(p)
+                                else:
+                                    score += path_len * player_weight(p)
+                        break
+
+            for row in range(6):
+                for col in range(4):
+                    score += score_path(board, row, col, 0, 1)
+
+            for row in range(3, 6):
+                for col in range(4):
+                    score += score_path(board, row, col, -1, 1)
+
+            for row in range(3):
+                for col in range(4):
+                    score += score_path(board, row, col, 1, 1)
+
+            return score
+
+        def is_terminal(board):
+            original_board = self.board
+            original_player = self.player
+            self.board = board
+            result = self.have_winner() or len(self.legal_actions()) == 0
+            self.board = original_board
+            self.player = original_player
+            return result
+
+        def minimax(board, depth, alpha, beta, maximizingPlayer):
+            valid_moves = self.legal_actions()
+            if depth == 0 or is_terminal(board):
+                return (None, evaluate(board))
+
+            if maximizingPlayer:
+                value = -float('inf')
+                best_col = np.random.choice(valid_moves)
+                for col in valid_moves:
+                    child = drop_piece(board, col, self.player)
+                    _, score = minimax(child, depth - 1, alpha, beta, False)
+                    if score > value:
+                        value = score
+                        best_col = col
+                    alpha = max(alpha, value)
+                    if alpha >= beta:
+                        break
+                return best_col, value
+            else:
+                value = float('inf')
+                best_col = valid_moves[0] if valid_moves else None
+                for col in valid_moves:
+                    child = drop_piece(board, col, -self.player)
+                    _, score = minimax(child, depth - 1, alpha, beta, True)
+                    if score < value:
+                        value = score
+                        best_col = col
+                    beta = min(beta, value)
+                    if alpha >= beta:
+                        break
+                return best_col, value
+
+        move, _ = minimax(self.board.copy(), depth, -float('inf'), float('inf'), True)
+        return move
 
     def render(self):
         print(self.board[::-1])
