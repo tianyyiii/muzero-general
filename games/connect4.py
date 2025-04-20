@@ -304,7 +304,7 @@ class Connect4:
 
         return False
 
-    def expert_action(self, depth=4):
+    def expert_action(self, depth=3):
 
         def player_weight(player):
             return 1 if player == self.player else -1
