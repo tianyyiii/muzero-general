@@ -340,6 +340,13 @@ class MCTS:
                 parent.hidden_state,
                 torch.tensor([[action]]).to(parent.hidden_state.device),
             )
+
+            # Uncommment and comment above for eval
+            # value, reward, policy_logits, hidden_state = model.recurrent_inference_eval(
+            #     parent.hidden_state,
+            #     torch.tensor([[action]]).to(parent.hidden_state.device),
+            # )
+
             value = models.support_to_scalar(value, self.config.support_size).item()
             reward = models.support_to_scalar(reward, self.config.support_size).item()
             node.expand(

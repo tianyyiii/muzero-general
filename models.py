@@ -642,6 +642,21 @@ class MuZeroResidualNetwork(AbstractNetwork):
         policy_logits, value = self.prediction(next_encoded_state)
         return value, reward, policy_logits, next_encoded_state
 
+    # Use for eval (averages instead of samples) 
+    # def recurrent_inference_eval(self, encoded_state, action):
+    #     all_next_states = []
+    #     all_rewards = []
+
+    #     for idx in range(self.dynamics_ensemble_count):
+    #         next_encoded_state, reward = self.dynamics(encoded_state, action, idx)
+    #         all_next_states.append(next_encoded_state)
+    #         all_rewards.append(reward)
+
+    #     next_encoded_state = torch.stack(all_next_states, dim=0).mean(dim=0)
+    #     reward = torch.stack(all_rewards, dim=0).mean(dim=0)
+
+    #     policy_logits, value = self.prediction(next_encoded_state)
+    #     return value, reward, policy_logits, next_encoded_state
 
 ########### End ResNet ###########
 ##################################

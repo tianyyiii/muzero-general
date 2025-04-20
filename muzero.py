@@ -1,3 +1,4 @@
+from collections import Counter
 import copy
 import importlib
 import json
@@ -420,6 +421,9 @@ class MuZero:
             )
         self_play_worker.close_game.remote()
 
+        rewards = [history.reward_history[-1] for history in results]
+        print(Counter(rewards))
+
         if len(self.config.players) == 1:
             result = numpy.mean([sum(history.reward_history) for history in results])
         else:
@@ -678,7 +682,7 @@ if __name__ == "__main__":
                 print(f"{i}. {options[i]}")
 
             choice = input("Enter a number to choose an action: ")
-            valid_inputs = [str(i) for i in range(len(options))]
+            valid_inputs = [str(i) for i in range(len(options) + 1)]
             while choice not in valid_inputs:
                 choice = input("Invalid input, enter a number listed above: ")
             choice = int(choice)
@@ -717,6 +721,9 @@ if __name__ == "__main__":
                     game_name, parametrization, budget, parallel_experiments, 20
                 )
                 muzero = MuZero(game_name, best_hyperparameters)
+            elif choice == 8:
+                # Evaluate the model
+                print(muzero.test(render=True, opponent="self", num_tests=50, muzero_player=None))
             else:
                 break
             print("\nDone")
